@@ -44,6 +44,7 @@ ap.add_argument('--num_integers_to_play','-nip',help='Number of primes after sta
 ap.add_argument('--primes','-p',help='Choose primes in sequence (not sequential integers) default=False',required=False,default=False,action='store_true')
 ap.add_argument('--prime_pairs','-pp',help='Choose from lowest several hundred or so prime pairs in sequence, default=False',required=False,default=False,action='store_true')
 ap.add_argument('--include_squares','-ixs',help='Include ord(a)=2 terms, default=False',required=False,default=False,action='store_true')
+ap.add_argument('--random_base','-so',help='Pick random modular base, othewise use element with lowest order, default=False',required=False,default=False,action='store_true')
 ap.add_argument('--wave_file','-wf',help='Wav file name to output (default=integers.wave)',required=False,default='integers.wav')
 ap.add_argument('--spectrogram_file','-sf',help='Spectrogram (png) file name to output (default=integers.png)',required=False,default='integers.png')
 ap.add_argument('--spectrogram_scale','-ss',help='Spectrogram scaling (log,lin,sqrt (default=sqrt)',required=False,default='sqrt')
@@ -161,11 +162,21 @@ def compute_order(p):
 		idx=0
 		if not clargs.include_squares:
 			filt = np.array(candidates)>2
-			idx = np.argmin(np.array(candidates)[filt])
-			r=np.array(candidates)[filt][idx]
-			a=np.array(coprimes)[filt][idx]
+			if len(filt) > 0:
+				if not clargs.random_base:
+					idx = np.argmin(np.array(candidates)[filt])
+				else:
+					idx = int(len(np.array(candidates)[filt])*np.random.rand())
+				r=np.array(candidates)[filt][idx]
+				a=np.array(coprimes)[filt][idx]
+			else: # all are order 2
+				a=coprimes[0]
+				r=candidates[0]
 		else:
-			idx = np.argmin(candidates) 
+			if clargs.random_base:
+				idx = np.argmin(candidates) 
+			else:
+				idx = int(len(candidates)*np.random.rand())
 			r=candidates[idx]
 			a=coprimes[idx]
 	else:
@@ -252,10 +263,6 @@ def gen_repeats(full_sweep,full_amp):
 	repeat_sweeps=[]
 	for sn in range(number_of_sweeps):
 		repeat_sweeps.extend(list(full_sweep))
-		
-#	t_repeat=np.arange(0,len(repeat_sweeps))/sample_rate
-#	plt.plot(t_repeat,repeat_sweeps)
-#	plt.show()
 	return repeat_sweeps
 	
 def gen_spectrogram(repeat_sweeps):
