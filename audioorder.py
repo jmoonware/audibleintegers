@@ -43,11 +43,14 @@ ap.add_argument('--start_integer_to_play','-sip',help='Closest prime number (gre
 ap.add_argument('--num_integers_to_play','-nip',help='Number of primes after start to use in generating notes',required=False,default=0)
 ap.add_argument('--primes','-p',help='Choose primes in sequence (not sequential integers) default=False',required=False,default=False,action='store_true')
 ap.add_argument('--prime_pairs','-pp',help='Choose from lowest several hundred or so prime pairs in sequence, default=False',required=False,default=False,action='store_true')
+ap.add_argument('--include_squares','-ixs',help='Include ord(a)=2 terms, default=False',required=False,default=False,action='store_true')
 ap.add_argument('--wave_file','-wf',help='Wav file name to output (default=integers.wave)',required=False,default='integers.wav')
 ap.add_argument('--spectrogram_file','-sf',help='Spectrogram (png) file name to output (default=integers.png)',required=False,default='integers.png')
 ap.add_argument('--spectrogram_scale','-ss',help='Spectrogram scaling (log,lin,sqrt (default=sqrt)',required=False,default='sqrt')
 ap.add_argument('--raw_freq','-rf',help='Use raw integer as frequency; otherwise assign to closest pentatonic note; default=False',required=False,default=False,action='store_true')
 ap.add_argument('--beat','-bt',help='Beat interval (s) default=1 s',required=False,default=1)
+ap.add_argument('--selected_trace_file','-stf',help='File name for plot of selected traces/power spectral densities (default='')',required=False,default='')
+ap.add_argument('--num_selected_traces','-nst',help='Plot the first [nst] traces (default=0, i.e. no plot)',required=False,default=0)
 
 clargs = ap.parse_args(sys.argv[1:])
 num_note_values=int(clargs.num_note_values)
@@ -149,14 +152,22 @@ def compute_order(p):
 		if len(cmf) > 0:
 			charmichael_val = min(cmf)
 
-	# find coprime that gives minimum order
+	# Find coprime that gives minimum order
+	# The minimum order is almost always '2' because
+	# (p-1)^2 = 1 mod p  
+	# because p^2 - 2p + 1 = np + 1 means n = p-2 always works
+	# Optionally exclude these squares
 	if len(candidates)>0:
 		idx=0
-		# exclude p-1, which always has order 2
-		if len(candidates)>1:
-			idx = np.argmin(candidates[:-1]) 
-		r=candidates[idx]
-		a=coprimes[idx]
+		if not clargs.include_squares:
+			filt = np.array(candidates)>2
+			idx = np.argmin(np.array(candidates)[filt])
+			r=np.array(candidates)[filt][idx]
+			a=np.array(coprimes)[filt][idx]
+		else:
+			idx = np.argmin(candidates) 
+			r=candidates[idx]
+			a=coprimes[idx]
 	else:
 		a=p
 		r=1
@@ -178,11 +189,15 @@ def gen_integer_waves(sampled_integers=[]):
 		sampled_orders.append(r)
 		charmichael.append(c)
 
+	nst = int(clargs.num_selected_traces)
+	if nst > 0:
+		plot_traces(sampled_integers[:nst], sampled_orders[:nst],sampled_coprimes[:nst])
+
 	# now compute modular exponents a^r mod p as wave
 	print("#val(s)\tN\tf(Hz)\ta\tr\tl(N)")
 	for a,r,p,t,c in zip(sampled_coprimes,sampled_orders,sampled_integers,note_times,charmichael):
 		# mod exp of primes with first coprime
-		mes = [pow(int(a),x,int(p)) for x in range(p)]
+		mes = [pow(int(a),int(x),int(p)) for x in range(p)]
 		# each mod sample time is at least two audio samples
 		t_p_minsam = 2/sample_rate
 		min_tone = 1/(p*t_p_minsam)
@@ -219,7 +234,6 @@ def gen_sweep(waves):
 		trim=int(len(wave))
 		if wend-ti!=trim:
 			trim=wend-ti
-#		print(ti,wend,trim)
 		half_sweep[ti:wend]+=wave[:trim]
 		c_time+=(t+note_spacing)
 	
@@ -277,6 +291,34 @@ def gen_spectrogram(repeat_sweeps):
 	ext=[0,len(repeat_sweeps)/sample_rate,np.log10(f_min),np.log10(sample_rate*pf[-1])]
 	plt.imshow(pgim,extent=ext,aspect='auto',origin='lower') # cmap='nipy_spectral'
 	plt.show()
+
+def plot_traces(integers,orders,coprimes,fpath=''):
+	""" Plot time and frequency traces of for selected integers
+	"""
+	
+	fig, axs = plt.subplots(ncols=2,nrows=len(integers))
+	for ax,i,o,cp in zip(axs,integers,orders,coprimes):
+		xs = range(1,i)
+		mes = [pow(int(cp),int(x),int(i)) for x in xs]
+		ax[0].plot(xs,mes,label=r"$%s^{%s}$ mod %s"%(str(cp),str(o),str(i)))
+		ax[0].legend()
+		f,Pxx = periodogram(mes,window='hamming')
+		ax[1].plot(f,Pxx)
+		ax[0].set_xlim(0,max(integers))
+		# turn off xticklabels for all but last
+		if i != integers[-1]:
+			ax[0].set_xticklabels([])
+			ax[1].set_xticklabels([])
+		else:
+			ax[0].set_xlabel("$x < p$")
+			ax[1].set_xlabel("f (rad)")
+		ax[1].set_yticklabels([])
+	
+	plt.subplots_adjust(hspace=0.025,wspace=0.05)
+	if len(fpath) > 0:
+		plt.savefig(fpath)
+	else: # plot to interactive
+		plt.show()
 	
 	
 ########
