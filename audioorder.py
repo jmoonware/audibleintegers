@@ -33,7 +33,7 @@ max_amp_default = 15000
 ap = argparse.ArgumentParser()
 ap.add_argument('--max_amp','-ma',help='Maximum digital amplitude of wave (16 bit audio should be less than 32768)',required=False,default=max_amp_default)
 ap.add_argument('--mix','-m',help='Mix of base tone and modular exponents trace (1 = pure tone, 0 = modexp only, default = 0.8)',required=False,default=0.8)
-ap.add_argument('--num_note_values','-nnd',help='Number of note values (starting with whole note = 1 beat (default=4)',required=False,default=4)
+ap.add_argument('--num_note_values','-nnv',help='Number of note values to sample (starting with whole note = 1 beat (default=4) reducing by 1/2^nnv',required=False,default=4)
 ap.add_argument('--num_notes','-nn',help='Number of notes in half-sweep of tones (default=20)',required=False,default=20)
 ap.add_argument('--integers_to_play','-itp',help='Comma-separated list of integers to play',required=False,default='')
 ap.add_argument('--number_of_sweeps','-ns',help='Number of soft/loud/soft sweeps (default=3)',required=False,default=3)
@@ -45,7 +45,7 @@ ap.add_argument('--include_squares','-ixs',help='Include ord(a)=2 terms, default
 ap.add_argument('--random_base','-rb',help='Pick random modular base, othewise use element with lowest order, default=False',required=False,default=False,action='store_true')
 ap.add_argument('--wave_file','-wf',help='Wav file name to output (default=integers.wave)',required=False,default='integers.wav')
 ap.add_argument('--generate_spectrogram','-gs',help='Generate spectrogram of resulting wav file, default=False',required=False,default=False,action='store_true')
-ap.add_argument('--spectrogram_file','-sf',help='Spectrogram (png) file name to output (default=integers.png)',required=False,default='integers.png')
+ap.add_argument('--spectrogram_file','-sf',help='Spectrogram (png) file name to output (default='')',required=False,default='')
 ap.add_argument('--spectrogram_scale','-ss',help='Spectrogram scaling (log,lin,sqrt (default=sqrt)',required=False,default='sqrt')
 ap.add_argument('--raw_freq','-rf',help='Use raw integer as frequency; otherwise assign to closest pentatonic note; default=False',required=False,default=False,action='store_true')
 ap.add_argument('--beat','-bt',help='Beat interval (s) default=1 s',required=False,default=1)
@@ -89,7 +89,7 @@ if int(clargs.num_integers_to_play)>0 and len(integers_to_play)==0:
 # set up randomly sampled note durations
 note_durations=np.array([1./2**x for x in range(num_note_values)])
 note_times=np.array([note_durations[int(i*num_note_values)] for i in np.random.rand(num_notes)])
-note_spacing=-0.02 # s, negative overlaps
+note_spacing=-0.02 # s, negative overlaps ok (preferred)
 
 def fix_wave_edges(wave,edge=0.02):
 	# fix up edges for gradual on/off, remove DC component and normalize
@@ -160,13 +160,14 @@ def compute_order(p):
 	if len(candidates)>0:
 		idx=0
 		if not clargs.include_squares:
-			filt = np.array(candidates)>2
-			if len(filt) > 0:
+			npcandidates = np.array(candidates)
+			filt = npcandidates > 2
+			if len(npcandidates[filt]) > 0:
 				if not clargs.random_base:
-					idx = np.argmin(np.array(candidates)[filt])
+					idx = np.argmin(npcandidates[filt])
 				else:
-					idx = int(len(np.array(candidates)[filt])*np.random.rand())
-				r=np.array(candidates)[filt][idx]
+					idx = int(len(npcandidates[filt])*np.random.rand())
+				r=npcandidates[filt][idx]
 				a=np.array(coprimes)[filt][idx]
 			else: # all are order 2
 				a=coprimes[0]
@@ -301,9 +302,13 @@ def gen_spectrogram(repeat_sweeps):
 	
 	ext=[0,len(repeat_sweeps)/sample_rate,np.log10(f_min),np.log10(sample_rate*pf[-1])]
 	plt.imshow(pgim,extent=ext,aspect='auto',origin='lower') # cmap='nipy_spectral'
-	plt.show()
+	if len(clargs.spectrogram_file) > 0:
+		plt.savefig(clargs.spectrogram_file)
+		plt.clf()
+	else:
+		plt.show()
 
-def plot_traces(integers,orders,coprimes,fpath=''):
+def plot_traces(integers,orders,coprimes):
 	""" Plot time and frequency traces of for selected integers
 	"""
 	
@@ -327,8 +332,9 @@ def plot_traces(integers,orders,coprimes,fpath=''):
 		ax[1].set_yticklabels([])
 	
 	plt.subplots_adjust(hspace=0.025,wspace=0.05)
-	if len(fpath) > 0:
-		plt.savefig(fpath)
+	if len(clargs.selected_trace_file) > 0:
+		plt.savefig(clargs.selected_trace_file)
+		plt.clf()
 	else: # plot to interactive
 		plt.show()
 	
