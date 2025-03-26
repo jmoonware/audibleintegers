@@ -13,9 +13,7 @@ pbfreqs = 2**((pbkeys-49.)/12.)*440
 
 # list of first 200 primes 
 primes = [
-2,3,5,7,11,13,17,19,
-23,29,31,
-37,41,43,47,53,59,61,67,71,73,79,83,
+2,3,5,7,11,13,17,19,23,29,31,37,41,43,47,53,59,61,67,71,73,79,83,
 89,97,101,103,107,109,113,127,131,137,139,149,151,157,163,167,173,179,
 181,191,193,197,199,211,223,227,229,233,239,241,251,257,263,269,271,277,281,
 283,293,307,311,313,317,331,337,347,349,353,359,367,373,379,383,389,397,
@@ -44,8 +42,9 @@ ap.add_argument('--num_integers_to_play','-nip',help='Number of primes after sta
 ap.add_argument('--primes','-p',help='Choose primes in sequence (not sequential integers) default=False',required=False,default=False,action='store_true')
 ap.add_argument('--prime_pairs','-pp',help='Choose from lowest several hundred or so prime pairs in sequence, default=False',required=False,default=False,action='store_true')
 ap.add_argument('--include_squares','-ixs',help='Include ord(a)=2 terms, default=False',required=False,default=False,action='store_true')
-ap.add_argument('--random_base','-so',help='Pick random modular base, othewise use element with lowest order, default=False',required=False,default=False,action='store_true')
+ap.add_argument('--random_base','-rb',help='Pick random modular base, othewise use element with lowest order, default=False',required=False,default=False,action='store_true')
 ap.add_argument('--wave_file','-wf',help='Wav file name to output (default=integers.wave)',required=False,default='integers.wav')
+ap.add_argument('--generate_spectrogram','-gs',help='Generate spectrogram of resulting wav file, default=False',required=False,default=False,action='store_true')
 ap.add_argument('--spectrogram_file','-sf',help='Spectrogram (png) file name to output (default=integers.png)',required=False,default='integers.png')
 ap.add_argument('--spectrogram_scale','-ss',help='Spectrogram scaling (log,lin,sqrt (default=sqrt)',required=False,default='sqrt')
 ap.add_argument('--raw_freq','-rf',help='Use raw integer as frequency; otherwise assign to closest pentatonic note; default=False',required=False,default=False,action='store_true')
@@ -248,6 +247,11 @@ def gen_sweep(waves):
 		half_sweep[ti:wend]+=wave[:trim]
 		c_time+=(t+note_spacing)
 	
+	# remove wave edges at end
+	n_end_trim = int(np.ceil(np.abs(sample_rate*note_spacing)))
+	if len(half_sweep) > n_end_trim:
+		half_sweep = half_sweep[:-n_end_trim]
+
 	N_half=len(half_sweep)
 	idx_half_sweep=np.arange(0,N_half)
 	t_half_sweep=idx_half_sweep/sample_rate
@@ -304,8 +308,9 @@ def plot_traces(integers,orders,coprimes,fpath=''):
 	"""
 	
 	fig, axs = plt.subplots(ncols=2,nrows=len(integers))
+	maxint=max(integers)
 	for ax,i,o,cp in zip(axs,integers,orders,coprimes):
-		xs = range(1,i)
+		xs = range(1,maxint)
 		mes = [pow(int(cp),int(x),int(i)) for x in xs]
 		ax[0].plot(xs,mes,label=r"$%s^{%s}$ mod %s"%(str(cp),str(o),str(i)))
 		ax[0].legend()
@@ -349,4 +354,5 @@ repeat_sweeps = gen_repeats(full_sweep, full_amp)
 wavfile.write(clargs.wave_file,int(sample_rate),np.array(repeat_sweeps,dtype=np.int16))
 
 # generate spectrogram
-gen_spectrogram(repeat_sweeps)
+if clargs.generate_spectrogram:
+	gen_spectrogram(repeat_sweeps)
