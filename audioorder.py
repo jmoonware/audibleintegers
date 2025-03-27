@@ -67,7 +67,12 @@ if len(clargs.integers_to_play) > 0:
 	num_notes=len(integers_to_play)
 
 # generate list from other settings
-if int(clargs.num_integers_to_play)>0 and len(integers_to_play)==0:
+nip = int(clargs.num_integers_to_play)
+sip = int(clargs.start_integer_to_play)
+if clargs.primes or clargs.prime_pairs and nip==0: # use primes
+	print("Warning: No number of integers specified - using 10")
+	nip=10
+if nip > 0 and len(integers_to_play)==0:
 	if clargs.primes or clargs.prime_pairs: # use primes
 		if clargs.prime_pairs:
 			trunc_primes = np.array(primes[4:24])
@@ -78,12 +83,12 @@ if int(clargs.num_integers_to_play)>0 and len(integers_to_play)==0:
 			pr.sort()
 		else:
 			pr = primes
-		idx = np.argmin(np.abs(int(clargs.start_integer_to_play)-np.array(pr)))
-		if pr[idx] < int(clargs.start_integer_to_play):
+		idx = np.argmin(np.abs(sip-np.array(pr)))
+		if pr[idx] < sip:
 			idx+=1
-		integers_to_play=pr[idx:idx+int(clargs.num_integers_to_play)]
+		integers_to_play=pr[idx:idx+nip]
 	else: # sequential integers
-		integers_to_play=np.arange(int(clargs.start_integer_to_play),int(clargs.start_integer_to_play)+int(clargs.num_integers_to_play))
+		integers_to_play=np.arange(sip,sip+nip)
 	num_notes=len(integers_to_play)
 
 # set up randomly sampled note durations
@@ -205,7 +210,7 @@ def gen_integer_waves(sampled_integers=[]):
 		plot_traces(sampled_integers[:nst], sampled_orders[:nst],sampled_coprimes[:nst])
 
 	# now compute modular exponents a^r mod p as wave
-	print("#val(s)\tN\tf(Hz)\ta\tr\tl(N)")
+	print("#val(s)\tN\tf(Hz)\ta\tr\tl(N)\tf")
 	for a,r,p,t,c in zip(sampled_coprimes,sampled_orders,sampled_integers,note_times,charmichael):
 		# mod exp of primes with first coprime
 		mes = [pow(int(a),int(x),int(p)) for x in range(p)]
@@ -222,7 +227,8 @@ def gen_integer_waves(sampled_integers=[]):
 		t_p_sam = 1/(tone*p)
 		# wave time base
 		t_base=np.arange(0,t,1/sample_rate)
-		print("{0:.2f}\t{1:04d}\t{2:.2f}\t{3:04d}\t{4}\t{5}".format(t,p,tone,a,r,c))
+		factor = np.gcd(pow(int(a),int(r/2),int(p))-1,p)
+		print("{0:.2f}\t{1:04d}\t{2:.2f}\t{3:04d}\t{4}\t{5}\t{6}".format(t,p,tone,a,r,c,factor))
 		# approximate number of repeats of this prime mapped to tone in t
 		reps = int(np.ceil(t/(t_p_sam*p)))
 		mes_reps = reps*mes
