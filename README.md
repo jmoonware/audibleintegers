@@ -1,5 +1,5 @@
 # audibleintegers
-Code for generating audio signals based on modular exponentiation of integers
+Code for generating audio signals based on modular exponentiation of integers.
 
 The integers show a surprising amount of structure, especially in the multiplicative group co-prime to a given integer N. This script can be used to generate audio tones that exhibit the repetitive patterns (via higher audio frequencies) for a given integer N.
 
@@ -17,7 +17,7 @@ Best practice is to create a virtual environment:
 python -m venv moonware
 ```
 
-The (on Linux)
+Then (on Linux):
 
 ```
 source moonware/bin/activate
