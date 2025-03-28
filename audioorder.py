@@ -36,6 +36,7 @@ ap.add_argument('--mix','-m',help='Mix of base tone and modular exponents trace 
 ap.add_argument('--num_note_values','-nnv',help='Number of note values to sample (starting with whole note = 1 beat (default=4) reducing by 1/2^nnv',required=False,default=4)
 ap.add_argument('--num_notes','-nn',help='Number of notes in half-sweep of tones (default=20)',required=False,default=20)
 ap.add_argument('--integers_to_play','-itp',help='Comma-separated list of integers to play',required=False,default='')
+ap.add_argument('--values_to_play','-vtp',help='Comma-separated list of note times (values, in seconds) to play',required=False,default='')
 ap.add_argument('--number_of_sweeps','-ns',help='Number of soft/loud/soft sweeps (default=3)',required=False,default=3)
 ap.add_argument('--start_integer_to_play','-sip',help='Closest prime number (greater than this value) to start playing',required=False,default=150)
 ap.add_argument('--num_integers_to_play','-nip',help='Number of primes after start to use in generating notes',required=False,default=0)
@@ -45,6 +46,7 @@ ap.add_argument('--include_squares','-ixs',help='Include ord(a)=2 terms, default
 ap.add_argument('--random_base','-rb',help='Pick random modular base, othewise use element with lowest order, default=False',required=False,default=False,action='store_true')
 ap.add_argument('--wave_file','-wf',help='Wav file name to output (default=integers.wave)',required=False,default='integers.wav')
 ap.add_argument('--generate_spectrogram','-gs',help='Generate spectrogram of resulting wav file, default=False',required=False,default=False,action='store_true')
+ap.add_argument('--noreverse','-nrv',help='Do not reverse order of notes on downward sweep, default=False',required=False,default=False,action='store_true')
 ap.add_argument('--spectrogram_file','-sf',help='Spectrogram (png) file name to output (default='')',required=False,default='')
 ap.add_argument('--spectrogram_scale','-ss',help='Spectrogram scaling (log,lin,sqrt (default=sqrt)',required=False,default='sqrt')
 ap.add_argument('--raw_freq','-rf',help='Use raw integer as frequency; otherwise assign to closest pentatonic note; default=False',required=False,default=False,action='store_true')
@@ -91,9 +93,19 @@ if nip > 0 and len(integers_to_play)==0:
 		integers_to_play=np.arange(sip,sip+nip)
 	num_notes=len(integers_to_play)
 
-# set up randomly sampled note durations
-note_durations=np.array([1./2**x for x in range(num_note_values)])
-note_times=np.array([note_durations[int(i*num_note_values)] for i in np.random.rand(num_notes)])
+if len(clargs.values_to_play) > 0:
+	note_durations=[]
+	for tok in clargs.values_to_play.split(','):
+		note_durations.append(float(tok))
+else:
+	note_durations=np.array([1./2**x for x in range(num_note_values)])
+
+# if we specified note values on command line
+if len(clargs.values_to_play)>0 and len(note_durations)==num_notes:
+	note_times = beat*np.array(note_durations)
+else: # otherwise randomly sample note values
+	note_times=beat*np.array([note_durations[int(i*num_note_values)] for i in np.random.rand(num_notes)])
+
 note_spacing=-0.02 # s, negative overlaps ok (preferred)
 
 def fix_wave_edges(wave,edge=0.02):
@@ -210,7 +222,7 @@ def gen_integer_waves(sampled_integers=[]):
 		plot_traces(sampled_integers[:nst], sampled_orders[:nst],sampled_coprimes[:nst])
 
 	# now compute modular exponents a^r mod p as wave
-	print("#val(s)\tN\tf(Hz)\ta\tr\tl(N)\tf")
+	print("#val(s)\tN\tf(Hz)\ta\tr\tl(N)\tF")
 	for a,r,p,t,c in zip(sampled_coprimes,sampled_orders,sampled_integers,note_times,charmichael):
 		# mod exp of primes with first coprime
 		mes = [pow(int(a),int(x),int(p)) for x in range(p)]
@@ -265,7 +277,10 @@ def gen_sweep(waves):
 	amp=max_amp*idx_half_sweep/(N_half-1) # modulate signal by this much
 
 	# align min, max to closest sample freq
-	full_sweep=np.append(amp*np.array(half_sweep),-amp[::-1]*np.array(half_sweep[::-1]))
+	if clargs.noreverse:
+		full_sweep=np.append(amp*np.array(half_sweep),amp[::-1]*np.array(half_sweep))
+	else:
+		full_sweep=np.append(amp*np.array(half_sweep),-amp[::-1]*np.array(half_sweep[::-1]))
 	full_amp = np.append(amp,amp[::-1])
 	return full_sweep,full_amp
 
@@ -326,7 +341,7 @@ def plot_traces(integers,orders,coprimes):
 		ax[0].plot(xs,mes,label=r"$%s^{%s}$ mod %s"%(str(cp),str(o),str(i)))
 		ax[0].legend()
 		f,Pxx = periodogram(mes,window='hamming')
-		ax[1].plot(f,Pxx)
+		ax[1].plot(1e-3*sample_rate*f,Pxx)
 		ax[0].set_xlim(0,max(integers))
 		# turn off xticklabels for all but last
 		if i != integers[-1]:
@@ -334,7 +349,7 @@ def plot_traces(integers,orders,coprimes):
 			ax[1].set_xticklabels([])
 		else:
 			ax[0].set_xlabel("$x < p$")
-			ax[1].set_xlabel("f (rad)")
+			ax[1].set_xlabel("f (kHz)")
 		ax[1].set_yticklabels([])
 	
 	plt.subplots_adjust(hspace=0.025,wspace=0.05)
