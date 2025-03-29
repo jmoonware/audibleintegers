@@ -71,7 +71,7 @@ if len(clargs.integers_to_play) > 0:
 # generate list from other settings
 nip = int(clargs.num_integers_to_play)
 sip = int(clargs.start_integer_to_play)
-if clargs.primes or clargs.prime_pairs and nip==0: # use primes
+if (clargs.primes or clargs.prime_pairs) and nip==0: # use primes
 	print("Warning: No number of integers specified - using 10")
 	nip=10
 if nip > 0 and len(integers_to_play)==0:
@@ -323,6 +323,8 @@ def gen_spectrogram(repeat_sweeps):
 	
 	ext=[0,len(repeat_sweeps)/sample_rate,np.log10(f_min),np.log10(sample_rate*pf[-1])]
 	plt.imshow(pgim,extent=ext,aspect='auto',origin='lower') # cmap='nipy_spectral'
+	plt.xlabel("Time (s)")
+	plt.ylabel("log$_{10}(f)$ (Hz)")
 	if len(clargs.spectrogram_file) > 0:
 		plt.savefig(clargs.spectrogram_file)
 		plt.clf()

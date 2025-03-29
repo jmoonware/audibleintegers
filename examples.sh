@@ -20,11 +20,11 @@ python audioorder.py -sip 200 -nip 30 -gs -sf spec200rbrf.png -nst 10 -stf trace
 
 #  30 primes in order from ~200, generating spectrogram and 
 #  plotting first 10 traces, using random 'a' base
-python audioorder.py -sip 200 -nip 30 -gs -sf spec160prb.png -nst 10 -stf traces160prb.png -wf integers160prb.wav --mix 0.5 -rb
+python audioorder.py -sip 200 -nip 30 -gs -sf spec200prb.png -nst 10 -stf traces200prb.png -wf integers200prb.wav --mix 0.5 -rb
 
 #  30 prime pairs in order from ~200, generating spectrogram and 
 #  plotting first 10 traces, using random 'a' base
-python audioorder.py -sip 200 -nip 30 -gs -sf spec160pprb.png -nst 10 -stf traces160pprb.png -wf integers160pprb.wav --mix 0.5 -rb 
+python audioorder.py -sip 200 -nip 30 -gs -sf spec200pprb.png -nst 10 -stf traces200pprb.png -wf integers200pprb.wav --mix 0.5 -rb 
 
 # Opening (bass line) notes of "Don't you want me" by The Human League (1981)
 # shows how to specify integers and times of notes
